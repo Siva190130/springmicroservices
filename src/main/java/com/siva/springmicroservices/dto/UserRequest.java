@@ -1,5 +1,6 @@
 package com.siva.springmicroservices.dto;
 
+import com.siva.springmicroservices.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -25,5 +26,5 @@ public class UserRequest {
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
-    private String role;
+    private Role role;
 }

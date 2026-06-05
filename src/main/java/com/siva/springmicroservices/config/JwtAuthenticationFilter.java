@@ -1,6 +1,11 @@
 package com.siva.springmicroservices.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.siva.springmicroservices.dto.ErrorResponse;
 import com.siva.springmicroservices.security.CustomUserDetailsService;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +28,7 @@ public class JwtAuthenticationFilter
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(
@@ -46,42 +53,93 @@ public class JwtAuthenticationFilter
         String jwt =
                 authHeader.substring(7);
 
-        String username =
-                jwtService.extractUsername(jwt);
+        try {
 
-        if (username != null &&
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication() == null) {
+            String username =
+                    jwtService.extractUsername(jwt);
 
-            UserDetails userDetails =
-                    userDetailsService
-                            .loadUserByUsername(
-                                    username);
+            if (username != null &&
+                    SecurityContextHolder
+                            .getContext()
+                            .getAuthentication() == null) {
 
-            if (jwtService.isTokenValid(
-                    jwt,
-                    userDetails)) {
+                UserDetails userDetails =
+                        userDetailsService
+                                .loadUserByUsername(
+                                        username);
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
+                if (jwtService.isTokenValid(
+                        jwt,
+                        userDetails)) {
 
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request));
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
 
-                SecurityContextHolder
-                        .getContext()
-                        .setAuthentication(authToken);
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource()
+                                    .buildDetails(request));
+
+                    SecurityContextHolder
+                            .getContext()
+                            .setAuthentication(authToken);
+                }
             }
+
+            filterChain.doFilter(
+                    request,
+                    response);
+
+        }
+        catch (ExpiredJwtException ex) {
+
+            writeErrorResponse(
+                    response,
+                    "Token has expired");
+
+            return;
+        }
+        catch (MalformedJwtException ex) {
+
+            writeErrorResponse(
+                    response,
+                    "Malformed JWT token");
+
+            return;
+        }
+        catch (SignatureException ex) {
+
+            writeErrorResponse(
+                    response,
+                    "Invalid JWT signature");
+
+            return;
         }
 
-        filterChain.doFilter(
-                request,
-                response);
+
+    }
+
+    private void writeErrorResponse(
+            HttpServletResponse response,
+            String message) throws IOException {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(message)
+                        .status(HttpServletResponse.SC_UNAUTHORIZED)
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        response.setStatus(
+                HttpServletResponse.SC_UNAUTHORIZED);
+
+        response.setContentType("application/json");
+
+        objectMapper.writeValue(
+                response.getOutputStream(),
+                errorResponse);
     }
 }

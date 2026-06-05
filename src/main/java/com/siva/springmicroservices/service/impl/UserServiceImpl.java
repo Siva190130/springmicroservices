@@ -8,6 +8,9 @@ import com.siva.springmicroservices.exception.UserNotFoundException;
 import com.siva.springmicroservices.repo.UserRepository;
 import com.siva.springmicroservices.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +43,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> getAllUsers() {
 
         return userRepo.findAll()
@@ -49,6 +53,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse getUserById(Long id) {
 
         User user= userRepo.findById(id).
@@ -58,6 +63,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateUser(Long id, UserRequest request) {
 
         User existingUser =
@@ -87,6 +93,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(Long id) {
 
         User user = userRepo.findById(id)
@@ -106,5 +113,24 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
                 .build();
+    }
+
+    @Override
+    public UserResponse getCurrentUser() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        String email =
+                authentication.getName();
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new UserNotFoundException(
+                                "User not found with email: " + email));
+
+        return mapToResponse(user);
     }
 }

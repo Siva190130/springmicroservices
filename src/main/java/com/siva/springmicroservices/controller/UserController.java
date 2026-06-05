@@ -25,7 +25,8 @@ public class UserController {
     public ResponseEntity<Object> getCurrentUser(
             Authentication authentication) {
 
-        return ResponseEntity.ok(authentication);
+        return ResponseEntity.ok(
+                userService.getCurrentUser());
     }
 
     @PostMapping

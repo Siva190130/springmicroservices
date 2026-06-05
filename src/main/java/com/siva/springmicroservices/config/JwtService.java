@@ -2,6 +2,7 @@ package com.siva.springmicroservices.config;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -11,28 +12,31 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    private static final String SECRET_KEY =
-            "mySuperSecretKeyForJwtAuthenticationSpringBootProject2026";
+    @Value("${jwt.secret}")
+    private String secretKey;
+
+    @Value("${jwt.expiration}")
+    private long expiration;
 
     private SecretKey getSigningKey() {
 
         return Keys.hmacShaKeyFor(
-                SECRET_KEY.getBytes()
+                secretKey.getBytes()
         );
     }
 
     public String generateToken(
             UserDetails userDetails) {
 
+        Date expiryDate = getExpirationDate();
         return Jwts.builder()
+                .claim(
+                        "role",
+                        userDetails.getAuthorities()
+                )
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date())
-                .expiration(
-                        new Date(
-                                System.currentTimeMillis()
-                                        + 1000 * 60 * 60
-                        )
-                )
+                .expiration(expiryDate)
                 .signWith(getSigningKey())
                 .compact();
     }
@@ -55,6 +59,34 @@ public class JwtService {
                 extractUsername(token);
 
         return username.equals(
-                userDetails.getUsername());
+                userDetails.getUsername())
+                && !isTokenExpired(token);
+    }
+
+    public Date extractExpiration(
+            String token) {
+
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
+    }
+
+    public long getExpirationTime() {
+        return expiration;
+    }
+
+    private boolean isTokenExpired(
+            String token) {
+
+        return extractExpiration(token)
+                .before(new Date());
+    }
+    public Date getExpirationDate() {
+        return new Date(
+                System.currentTimeMillis() + expiration
+        );
     }
 }

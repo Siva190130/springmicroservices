@@ -1,10 +1,7 @@
 package com.siva.springmicroservices.controller;
 
 import com.siva.springmicroservices.config.JwtService;
-import com.siva.springmicroservices.dto.LoginRequest;
-import com.siva.springmicroservices.dto.LoginResponse;
-import com.siva.springmicroservices.dto.UserRequest;
-import com.siva.springmicroservices.dto.UserResponse;
+import com.siva.springmicroservices.dto.*;
 import com.siva.springmicroservices.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(
+    public ResponseEntity<AuthResponse> login(
             @RequestBody LoginRequest request) {
 
         Authentication authentication =
@@ -55,6 +52,14 @@ public class AuthController {
         String token =
                 jwtService.generateToken(userDetails);
 
-        return ResponseEntity.ok(token);
+        AuthResponse response =
+                AuthResponse.builder()
+                        .token(token)
+                        .type("Bearer")
+                        .expiresAt(jwtService.extractExpiration(token))
+                        .expiresIn(jwtService.getExpirationTime()/1000)
+                        .build();
+
+        return ResponseEntity.ok(response);
     }
 }
