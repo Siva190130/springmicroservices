@@ -26,5 +26,4 @@ public class UserRequest {
     @NotBlank(message = "Phone number is required")
     private String phoneNumber;
 
-    private Role role;
 }

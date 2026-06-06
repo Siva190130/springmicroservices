@@ -28,7 +28,7 @@ public class CustomAccessDeniedHandler
 
         ErrorResponse errorResponse =
                 ErrorResponse.builder()
-                        .message("Access Denied")
+                        .message(accessDeniedException.getMessage())
                         .status(HttpServletResponse.SC_FORBIDDEN)
                         .timestamp(LocalDateTime.now())
                         .build();

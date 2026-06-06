@@ -2,6 +2,7 @@ package com.siva.springmicroservices.service;
 
 import com.siva.springmicroservices.dto.UserRequest;
 import com.siva.springmicroservices.dto.UserResponse;
+import com.siva.springmicroservices.entity.Role;
 
 import java.util.List;
 
@@ -18,4 +19,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     UserResponse getCurrentUser();
+
+    UserResponse updateUserRole(Long id, Role role);
 }

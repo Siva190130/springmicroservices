@@ -1,22 +1,14 @@
 package com.siva.springmicroservices.dto;
 
 import com.siva.springmicroservices.entity.Role;
+
 import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class UserResponse {
-
-    private Long id;
-
-    private String name;
-
-    private String email;
-
-    private String phoneNumber;
+public class RoleUpdateRequest {
 
     private Role role;
 }

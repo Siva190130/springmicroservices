@@ -1,6 +1,7 @@
 package com.siva.springmicroservices.controller;
 
 
+import com.siva.springmicroservices.dto.RoleUpdateRequest;
 import com.siva.springmicroservices.dto.UserRequest;
 import com.siva.springmicroservices.dto.UserResponse;
 import com.siva.springmicroservices.service.UserService;
@@ -29,17 +30,6 @@ public class UserController {
                 userService.getCurrentUser());
     }
 
-    @PostMapping
-    public ResponseEntity<UserResponse> createUser(
-            @Valid @RequestBody UserRequest request) {
-
-        UserResponse response =
-                userService.createUser(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
-    }
 
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAllUsers() {
@@ -72,5 +62,16 @@ public class UserController {
         userService.deleteUser(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/role")
+    public ResponseEntity<UserResponse> updateUserRole(
+            @PathVariable Long id,
+            @RequestBody RoleUpdateRequest request) {
+
+        return ResponseEntity.ok(
+                userService.updateUserRole(
+                        id,
+                        request.getRole()));
     }
 }

@@ -2,12 +2,14 @@ package com.siva.springmicroservices.service.impl;
 
 import com.siva.springmicroservices.dto.UserRequest;
 import com.siva.springmicroservices.dto.UserResponse;
+import com.siva.springmicroservices.entity.Role;
 import com.siva.springmicroservices.entity.User;
 import com.siva.springmicroservices.exception.EmailAlreadyExistsException;
 import com.siva.springmicroservices.exception.UserNotFoundException;
 import com.siva.springmicroservices.repo.UserRepository;
 import com.siva.springmicroservices.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,7 +38,7 @@ public class UserServiceImpl implements UserService {
                 .password(passwordEncoder.encode(
                         request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
-                .role(request.getRole())
+                .role(Role.USER)
                 .build();
         userRepo.save(user);
         return mapToResponse(user);
@@ -53,9 +55,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse getUserById(Long id) {
+        User loggedInUser =
+                getCurrentAuthenticatedUser();
 
+        if (loggedInUser.getRole() != Role.ADMIN
+                && !loggedInUser.getId().equals(id)) {
+
+            throw new AccessDeniedException(
+                    "You can only view your own profile");
+        }
         User user= userRepo.findById(id).
                 orElseThrow(()->
                         new UserNotFoundException("User not Found with id"+ id));
@@ -63,7 +72,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateUser(Long id, UserRequest request) {
 
         User existingUser =
@@ -75,6 +83,15 @@ public class UserServiceImpl implements UserService {
 
             throw new EmailAlreadyExistsException(
                     "Email already exists");
+        }
+        User loggedInUser =
+                getCurrentAuthenticatedUser();
+
+        if (loggedInUser.getRole() != Role.ADMIN
+                && !loggedInUser.getId().equals(id)) {
+
+            throw new AccessDeniedException(
+                    "You can only update your own profile");
         }
 
         User user= userRepo.findById(id).
@@ -93,13 +110,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(Long id) {
 
         User user = userRepo.findById(id)
                 .orElseThrow(() ->
                         new UserNotFoundException(
                                 "User not found with id " + id));
+        User loggedInUser =
+                getCurrentAuthenticatedUser();
+
+        if (loggedInUser.getRole() != Role.ADMIN
+                && !loggedInUser.getId().equals(id)) {
+
+            throw new AccessDeniedException(
+                    "You can only delete your own profile");
+        }
 
         userRepo.delete(user);
 
@@ -112,24 +137,61 @@ public class UserServiceImpl implements UserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
+                .role(user.getRole())
                 .build();
     }
 
     @Override
     public UserResponse getCurrentUser() {
 
+        return mapToResponse(
+                getCurrentAuthenticatedUser());
+    }
+
+    private User getLoggedInUser() {
+
         Authentication authentication =
                 SecurityContextHolder
                         .getContext()
                         .getAuthentication();
 
-        String email =
-                authentication.getName();
+        String email = authentication.getName();
 
-        User user = userRepo.findByEmail(email)
+        return userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new UserNotFoundException(
+                                "Logged in user not found"));
+    }
+
+    private User getCurrentAuthenticatedUser() {
+
+        Authentication authentication =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
+
+        String email = authentication.getName();
+
+        return userRepo.findByEmail(email)
                 .orElseThrow(() ->
                         new UserNotFoundException(
                                 "User not found with email: " + email));
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse updateUserRole(
+            Long id,
+            Role role) {
+
+        User user = userRepo.findById(id)
+                .orElseThrow(() ->
+                        new UserNotFoundException(
+                                "User not found with id " + id));
+
+        user.setRole(role);
+
+        userRepo.save(user);
 
         return mapToResponse(user);
     }
