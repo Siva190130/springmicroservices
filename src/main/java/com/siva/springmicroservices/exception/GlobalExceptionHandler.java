@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -67,6 +68,27 @@ public class GlobalExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            HandlerMethodValidationException ex) {
+
+        String message = ex.getParameterValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors().stream())
+                .map(error -> error.getDefaultMessage())
+                .findFirst()
+                .orElse("Validation failed");
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message(message)
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.badRequest()
+                .body(errorResponse);
+    }
+
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFoundException(
@@ -96,5 +118,36 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(error);
+    }
+
+    @ExceptionHandler(InvalidSortFieldException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSortFieldException(
+            InvalidSortFieldException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity
+                .badRequest()
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(InvalidSortDirectionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSortDirectionException(
+            InvalidSortDirectionException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity.badRequest()
+                .body(errorResponse);
     }
 }
