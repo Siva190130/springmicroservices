@@ -1,16 +1,24 @@
 package com.siva.springmicroservices.service.impl;
 
+import com.siva.springmicroservices.dto.PagedResponse;
 import com.siva.springmicroservices.dto.ProductRequest;
 import com.siva.springmicroservices.dto.ProductResponse;
 import com.siva.springmicroservices.dto.ProductUpdateRequest;
 import com.siva.springmicroservices.entity.Product;
+import com.siva.springmicroservices.exception.InvalidSortDirectionException;
+import com.siva.springmicroservices.exception.InvalidSortFieldException;
 import com.siva.springmicroservices.exception.ProductNotFoundException;
 import com.siva.springmicroservices.repo.ProductRepository;
 import com.siva.springmicroservices.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -37,12 +45,32 @@ public class ProductServiceImpl
     }
 
     @Override
-    public List<ProductResponse> getAllProducts() {
+    public PagedResponse<ProductResponse> getAllProducts(
+            int page,
+            int size,
+            String sortBy,
+            String direction) {
 
-        return productRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        validateSortField(sortBy);
+        validateSortDirection(direction);
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable =
+                PageRequest.of(page, size, sort);
+
+        Page<Product> productPage =
+                productRepository.findAll(pageable);
+
+        List<ProductResponse> products =
+                productPage.getContent()
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+        return mapToPagedResponse(products, productPage);
     }
 
     @Override
@@ -144,6 +172,63 @@ public class ProductServiceImpl
                 .toList();
     }
 
+    @Override
+    public PagedResponse<ProductResponse> searchProducts(
+            String name,
+            int page,
+            int size,
+            String sortBy,
+            String direction) {
+
+        validateSortField(sortBy);
+        validateSortDirection(direction);
+
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable =
+                PageRequest.of(page, size, sort);
+
+        Page<Product> productPage =
+                productRepository
+                        .findByNameContainingIgnoreCase(
+                                name,
+                                pageable);
+
+        List<ProductResponse> products =
+                productPage.getContent()
+                        .stream()
+                        .map(this::mapToResponse)
+                        .toList();
+
+        return mapToPagedResponse(products, productPage);
+    }
+
+
+    private void validateSortField(String sortBy) {
+        Set<String> allowedFields = Set.of(
+                "id",
+                "name",
+                "price",
+                "quantity"
+        );
+
+        if (!allowedFields.contains(sortBy)) {
+            throw new InvalidSortFieldException(sortBy);
+        }
+    }
+
+
+    private void validateSortDirection(String direction) {
+
+        if (!direction.equalsIgnoreCase("asc")
+                && !direction.equalsIgnoreCase("desc")) {
+
+            throw new InvalidSortDirectionException(direction);
+        }
+    }
+
 
     private ProductResponse mapToResponse(Product product) {
 
@@ -154,5 +239,19 @@ public class ProductServiceImpl
                 .price(product.getPrice())
                 .quantity(product.getQuantity())
                 .build();
+    }
+
+    private PagedResponse<ProductResponse> mapToPagedResponse(
+            List<ProductResponse> products, Page<Product> productPage ){
+
+        return PagedResponse.<ProductResponse>builder()
+                .content(products)
+                .pageNumber(productPage.getNumber())
+                .pageSize(productPage.getSize())
+                .totalElements(productPage.getTotalElements())
+                .totalPages(productPage.getTotalPages())
+                .last(productPage.isLast())
+                .build();
+
     }
 }

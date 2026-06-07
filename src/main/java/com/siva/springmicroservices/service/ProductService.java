@@ -1,5 +1,6 @@
 package com.siva.springmicroservices.service;
 
+import com.siva.springmicroservices.dto.PagedResponse;
 import com.siva.springmicroservices.dto.ProductRequest;
 import com.siva.springmicroservices.dto.ProductResponse;
 import com.siva.springmicroservices.dto.ProductUpdateRequest;
@@ -11,7 +12,18 @@ public interface ProductService {
 
     ProductResponse createProduct(ProductRequest request);
 
-    List<ProductResponse> getAllProducts();
+    PagedResponse<ProductResponse> getAllProducts(
+            int page,
+            int size,
+            String sortBy,
+            String direction);
+
+    PagedResponse<ProductResponse> searchProducts(
+            String name,
+            int page,
+            int size,
+            String sortBy,
+            String direction);
 
     ProductResponse getProduct(Long id);
 

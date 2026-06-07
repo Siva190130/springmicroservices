@@ -1,11 +1,15 @@
 package com.siva.springmicroservices.controller;
 
+import com.siva.springmicroservices.dto.PagedResponse;
 import com.siva.springmicroservices.dto.ProductRequest;
 import com.siva.springmicroservices.dto.ProductResponse;
 import com.siva.springmicroservices.dto.ProductUpdateRequest;
 import com.siva.springmicroservices.entity.Product;
 import com.siva.springmicroservices.service.ProductService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,12 +41,67 @@ public class ProductController {
 
 
     @GetMapping
-    public ResponseEntity<List<ProductResponse>>
-    getAllProducts() {
+    public ResponseEntity<PagedResponse<ProductResponse>> getAllProducts(
+
+            @Min(value = 0,
+                    message = "Page number must be greater than or equal to 0")
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @Min(value = 1,
+                    message = "Page size must be at least 1")
+            @Max(value = 20,
+                    message = "Page size cannot exceed 100")
+            @RequestParam(defaultValue = "10")
+            int size,
+
+            @RequestParam(defaultValue = "id")
+            String sortBy,
+
+            @RequestParam(defaultValue = "asc")
+            String direction) {
 
         return ResponseEntity.ok(
-                productService.getAllProducts());
+                productService.getAllProducts(
+                        page,
+                        size,
+                        sortBy,
+                        direction));
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<PagedResponse<ProductResponse>> searchProducts(
+
+            @NotBlank(message = "Search name cannot be blank")
+            @RequestParam String name,
+
+            @Min(value = 0,
+                    message = "Page number must be greater than or equal to 0")
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @Min(value = 1,
+                    message = "Page size must be at least 1")
+            @Max(value = 100,
+                    message = "Page size cannot exceed 100")
+            @RequestParam(defaultValue = "10")
+            int size,
+
+            @RequestParam(defaultValue = "id")
+            String sortBy,
+
+            @RequestParam(defaultValue = "asc")
+            String direction) {
+
+        return ResponseEntity.ok(
+                productService.searchProducts(
+                        name,
+                        page,
+                        size,
+                        sortBy,
+                        direction));
+    }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse>
