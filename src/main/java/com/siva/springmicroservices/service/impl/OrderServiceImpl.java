@@ -3,7 +3,10 @@ package com.siva.springmicroservices.service.impl;
 import com.siva.springmicroservices.dto.*;
 import com.siva.springmicroservices.entity.*;
 import com.siva.springmicroservices.exception.InsufficientStockException;
+import com.siva.springmicroservices.exception.InvalidOrderStatusTransitionException;
+import com.siva.springmicroservices.exception.OrderNotFoundException;
 import com.siva.springmicroservices.exception.ProductNotFoundException;
+import com.siva.springmicroservices.exception.OrderCancellationNotAllowedException;
 import com.siva.springmicroservices.repo.OrderRepository;
 import com.siva.springmicroservices.repo.ProductRepository;
 import com.siva.springmicroservices.repo.UserRepository;
@@ -13,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -153,6 +157,19 @@ public class OrderServiceImpl implements OrderService {
                 orderPage);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new OrderNotFoundException(orderId));
+
+        validateOrderOwnership(order);
+
+        return mapToOrderResponse(order);
+    }
+
     private User getCurrentUser() {
 
         Authentication authentication =
@@ -164,6 +181,91 @@ public class OrderServiceImpl implements OrderService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
+    }
+
+    private void validateOrderOwnership(Order order) {
+
+        User currentUser = getCurrentUser();
+
+        boolean isAdmin =
+                currentUser.getRole() == Role.ADMIN;
+
+        boolean isOwner =
+                order.getUser()
+                        .getId()
+                        .equals(currentUser.getId());
+
+        if (!isAdmin && !isOwner) {
+
+            throw new AccessDeniedException(
+                    "You are not authorized to access this order");
+        }
+    }
+
+    @Override
+    public OrderResponse updateOrderStatus(
+            Long orderId,
+            OrderStatusUpdateRequest request) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new OrderNotFoundException(orderId));
+
+        validateStatusTransition(
+                order.getStatus(),
+                request.getStatus());
+
+        order.setStatus(request.getStatus());
+
+        Order updatedOrder =
+                orderRepository.save(order);
+
+        return mapToOrderResponse(updatedOrder);
+    }
+
+    private void validateStatusTransition(
+            OrderStatus currentStatus,
+            OrderStatus newStatus) {
+
+        switch (currentStatus) {
+
+            case PENDING -> {
+
+                if (newStatus != OrderStatus.CONFIRMED
+                        && newStatus != OrderStatus.CANCELLED) {
+
+                    throw new InvalidOrderStatusTransitionException(
+                            currentStatus.name(),
+                            newStatus.name());
+                }
+            }
+
+            case CONFIRMED -> {
+
+                if (newStatus != OrderStatus.SHIPPED) {
+
+                    throw new InvalidOrderStatusTransitionException(
+                            currentStatus.name(),
+                            newStatus.name());
+                }
+            }
+
+            case SHIPPED -> {
+
+                if (newStatus != OrderStatus.DELIVERED) {
+
+                    throw new InvalidOrderStatusTransitionException(
+                            currentStatus.name(),
+                            newStatus.name());
+                }
+            }
+
+            case DELIVERED, CANCELLED ->
+
+                    throw new InvalidOrderStatusTransitionException(
+                            currentStatus.name(),
+                            newStatus.name());
+        }
     }
 
     private void validateStock(
@@ -237,5 +339,53 @@ public class OrderServiceImpl implements OrderService {
                 : Sort.by(sortBy).ascending();
 
         return PageRequest.of(page, size, sort);
+    }
+
+    @Override
+    public OrderResponse cancelOrder(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new OrderNotFoundException(orderId));
+
+        validateOrderOwnership(order);
+
+        validateOrderCancellation(order);
+
+        restoreInventory(order);
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        Order cancelledOrder =
+                orderRepository.save(order);
+
+        return mapToOrderResponse(cancelledOrder);
+    }
+
+    private void validateOrderCancellation(
+            Order order) {
+
+        OrderStatus status = order.getStatus();
+
+        if (status != OrderStatus.PENDING
+                && status != OrderStatus.CONFIRMED) {
+
+            throw new OrderCancellationNotAllowedException(
+                    order.getId());
+        }
+    }
+
+    private void restoreInventory(Order order) {
+
+        for (OrderItem orderItem :
+                order.getOrderItems()) {
+
+            Product product =
+                    orderItem.getProduct();
+
+            product.setQuantity(
+                    product.getQuantity()
+                            + orderItem.getQuantity());
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.siva.springmicroservices.exception;
 import com.siva.springmicroservices.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -154,6 +155,69 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientStockException(
             InsufficientStockException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity.badRequest()
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFoundException(
+            OrderNotFoundException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .status(HttpStatus.NOT_FOUND.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message("Invalid order status. Allowed values: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED")
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity.badRequest()
+                .body(errorResponse);
+    }
+    @ExceptionHandler(
+            InvalidOrderStatusTransitionException.class)
+    public ResponseEntity<ErrorResponse>
+    handleInvalidOrderStatusTransitionException(
+            InvalidOrderStatusTransitionException ex) {
+
+        ErrorResponse errorResponse =
+                ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .status(HttpStatus.BAD_REQUEST.value())
+                        .timestamp(LocalDateTime.now())
+                        .build();
+
+        return ResponseEntity.badRequest()
+                .body(errorResponse);
+    }
+
+    @ExceptionHandler(
+            OrderCancellationNotAllowedException.class)
+    public ResponseEntity<ErrorResponse>
+    handleOrderCancellationNotAllowedException(
+            OrderCancellationNotAllowedException ex) {
 
         ErrorResponse errorResponse =
                 ErrorResponse.builder()

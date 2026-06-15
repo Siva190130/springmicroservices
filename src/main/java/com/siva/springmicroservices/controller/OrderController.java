@@ -2,6 +2,7 @@ package com.siva.springmicroservices.controller;
 
 import com.siva.springmicroservices.dto.OrderRequest;
 import com.siva.springmicroservices.dto.OrderResponse;
+import com.siva.springmicroservices.dto.OrderStatusUpdateRequest;
 import com.siva.springmicroservices.dto.PagedResponse;
 import com.siva.springmicroservices.service.OrderService;
 import jakarta.validation.Valid;
@@ -81,5 +82,41 @@ public class OrderController {
                         size,
                         sortBy,
                         direction));
+    }
+
+    @GetMapping("/{orderId}")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> getOrderById(
+            @PathVariable Long orderId) {
+
+        return ResponseEntity.ok(
+                orderService.getOrderById(orderId));
+    }
+
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse> updateOrderStatus(
+
+            @PathVariable Long orderId,
+
+            @Valid
+            @RequestBody OrderStatusUpdateRequest request) {
+
+        return ResponseEntity.ok(
+                orderService.updateOrderStatus(
+                        orderId,
+                        request));
+    }
+
+
+    @PutMapping("/{orderId}/cancel")
+    @PreAuthorize(
+            "hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<OrderResponse>
+    cancelOrder(
+            @PathVariable Long orderId) {
+
+        return ResponseEntity.ok(
+                orderService.cancelOrder(orderId));
     }
 }
